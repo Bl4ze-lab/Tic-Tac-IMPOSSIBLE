@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<title>Tic Tac do Bl4ze IMPOSSIBLE</title>
+<style>
+  /* Estilos básicos e layout */
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    text-align: center;
+    background: linear-gradient(135deg, #1f1c2c, #928dab);
+    color: white;
+    margin: 0; padding: 0;
+  }
+  h1 {
+    margin-top: 30px;
+    font-size: 32px;
+  }
+  #board {
+    display: grid;
+    grid-template-columns: repeat(3, 110px);
+    gap: 10px;
+    justify-content: center;
+    margin-top: 30px;
+    position: relative;
+  }
+  .cell {
+    width: 110px;
+    height: 110px;
+    font-size: 42px;
+    font-weight: bold;
+    border-radius: 15px;
+    border: none;
+    background: #2b2b3c;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    user-select: none;
+  }
+  .cell:hover {
+    background: #3a3a5c;
+    transform: scale(1.05);
+  }
+  .cell:active {
+    transform: scale(0.95);
+  }
+  /* Cores dos jogadores */
+  .cell.X {
+    color: #ff4c4c;
+  }
+  .cell.O {
+    color: #4ca6ff;
+  }
+  /* Status */
+  #status {
+    margin-top: 25px;
+    font-size: 22px;
+    font-weight: bold;
+    min-height: 30px;
+  }
+  /* Botão */
+  button {
+    margin-top: 20px;
+    padding: 12px 20px;
+    font-size: 16px;
+    border-radius: 10px;
+    border: none;
+    background: #4ca6ff;
+    color: white;
+    cursor: pointer;
+    transition: 0.3s;
+  }
+  button:hover {
+    background: #3b8be0;
+    transform: scale(1.05);
+  }
+  button:active {
+    transform: scale(0.95);
+  }
+
+  /* Linha animada vencedora */
+  #line {
+    position: absolute;
+    background-color: #ffdd57;
+    border-radius: 5px;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+  }
+  /* Linha horizontal */
+  #line.horizontal {
+    height: 5px;
+    width: 350px;
+    left: 5px;
+  }
+  /* Linha vertical */
+  #line.vertical {
+    width: 5px;
+    height: 350px;
+    top: 5px;
+  }
+  /* Linha diagonal */
+  #line.diagonal1 {
+    width: 5px;
+    height: 390px;
+    top: -20px;
+    left: 55px;
+    transform: rotate(45deg);
+  }
+  #line.diagonal2 {
+    width: 5px;
+    height: 390px;
+    top: -20px;
+    left: 55px;
+    transform: rotate(-45deg);
+  }
+</style>
+</head>
+<body>
+
+<h1>Tic Tac do Bl4ze IMPOSSIBLE</h1>
+
+<div id="board"></div>
+<div id="status">Sua vez</div>
+<button onclick="resetGame()">Reiniciar</button>
+
+<!-- Linha animada -->
+<div id="line"></div>
+
+<script>
+  const boardElement = document.getElementById("board");
+  const statusText = document.getElementById("status");
+  const line = document.getElementById("line");
+
+  let board = ["", "", "", "", "", "", "", "", ""];
+  let gameOver = false;
+
+  // Combinações vencedoras e linha para animar
+  const wins = [
+    { combo: [0,1,2], lineClass: 'horizontal', lineTop: 55 },
+    { combo: [3,4,5], lineClass: 'horizontal', lineTop: 170 },
+    { combo: [6,7,8], lineClass: 'horizontal', lineTop: 285 },
+    { combo: [0,3,6], lineClass: 'vertical', lineLeft: 55 },
+    { combo: [1,4,7], lineClass: 'vertical', lineLeft: 170 },
+    { combo: [2,5,8], lineClass: 'vertical', lineLeft: 285 },
+    { combo: [0,4,8], lineClass: 'diagonal1' },
+    { combo: [2,4,6], lineClass: 'diagonal2' },
+  ];
+
+  function createBoard() {
+    boardElement.innerHTML = "";
+    board.forEach((cell, index) => {
+      const button = document.createElement("button");
+      button.classList.add("cell");
+      if(cell === "X") button.classList.add("X");
+      if(cell === "O") button.classList.add("O");
+      button.innerText = cell;
+      button.onclick = () => playerMove(index);
+      boardElement.appendChild(button);
+    });
+  }
+
+  function playerMove(index) {
+    if (board[index] !== "" || gameOver) return;
+
+    board[index] = "X";
+    updateBoard();
+
+    if (checkWinner("X")) {
+      statusText.innerText = "Você venceu 🎉";
+      showWinningLine("X");
+      gameOver = true;
+      return;
+    }
+
+    if (board.every(cell => cell !== "")) {
+      statusText.innerText = "Empate!";
+      gameOver = true;
+      return;
+    }
+
+    statusText.innerText = "IA jogando...";
+    setTimeout(() => {
+      aiMove();
+      updateBoard();
+      if (checkWinner("O")) {
+        statusText.innerText = "IA venceu 🤖";
+        showWinningLine("O");
+        gameOver = true;
+        return;
+      }
+      if (board.every(cell => cell !== "")) {
+        statusText.innerText = "Empate!";
+        gameOver = true;
+      } else {
+        statusText.innerText = "Sua vez";
+      }
+    }, 300);
+  }
+
+  // Função IA com Minimax para melhor jogada
+  function aiMove() {
+    let bestScore = -Infinity;
+    let move = -1;
+    for (let i = 0; i < 9; i++) {
+      if (board[i] === "") {
+        board[i] = "O";
+        let score = minimax(board, false);
+        board[i] = "";
+        if (score > bestScore) {
+          bestScore = score;
+          move = i;
+        }
+      }
+    }
+    if (move !== -1) {
+      board[move] = "O";
+    }
+  }
+
+  function minimax(boardState, isMaximizing) {
+    if (checkWinnerFor(boardState, "O")) return 1;
+    if (checkWinnerFor(boardState, "X")) return -1;
+    if (boardState.every(cell => cell !== "")) return 0;
+
+    if (isMaximizing) {
+      let bestScore = -Infinity;
+      for (let i = 0; i < 9; i++) {
+        if (boardState[i] === "") {
+          boardState[i] = "O";
+          let score = minimax(boardState, false);
+          boardState[i] = "";
+          bestScore = Math.max(score, bestScore);
+        }
+      }
+      return bestScore;
+    } else {
+      let bestScore = Infinity;
+      for (let i = 0; i < 9; i++) {
+        if (boardState[i] === "") {
+          boardState[i] = "X";
+          let score = minimax(boardState, true);
+          boardState[i] = "";
+          bestScore = Math.min(score, bestScore);
+        }
+      }
+      return bestScore;
+    }
+  }
+
+  // Verificar vencedor no estado passado
+  function checkWinnerFor(b, player) {
+    return wins.some(({combo}) => combo.every(i => b[i] === player));
+  }
+
+  // Verificar vencedor no board atual
+  function checkWinner(player) {
+    return checkWinnerFor(board, player);
+  }
+
+  function updateBoard() {
+    createBoard();
+  }
+
+  function resetGame() {
+    board = ["", "", "", "", "", "", "", "", ""];
+    gameOver = false;
+    statusText.innerText = "Sua vez";
+    line.style.opacity = 0;
+    updateBoard();
+  }
+
+  // Mostrar linha animada na combinação vencedora
+  function showWinningLine(player) {
+    const winningCombo = wins.find(({combo}) => combo.every(i => board[i] === player));
+    if (!winningCombo) return;
+
+    line.className = '';
+    line.style.opacity = 1;
+
+    if (winningCombo.lineClass === 'horizontal') {
+      line.classList.add('horizontal');
+      line.style.top = winningCombo.lineTop + 'px';
+      line.style.left = '5px';
+      line.style.width = '350px';
+      line.style.height = '5px';
+    } else if (winningCombo.lineClass === 'vertical') {
+      line.classList.add('vertical');
+      line.style.left = winningCombo.lineLeft + 'px';
+      line.style.top = '5px';
+      line.style.height = '350px';
+      line.style.width = '5px';
+    } else if (winningCombo.lineClass === 'diagonal1') {
+      line.classList.add('diagonal1');
+      line.style.opacity = 1;
+    } else if (winningCombo.lineClass === 'diagonal2') {
+      line.classList.add('diagonal2');
+      line.style.opacity = 1;
+    }
+  }
+
+  // Inicializa o tabuleiro
+  createBoard();
+</script>
+
+</body>
+</html>
